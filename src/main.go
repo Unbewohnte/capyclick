@@ -40,16 +40,23 @@ type Game struct {
 	Config         conf.Configuration
 	Save           save.Save
 	AudioContext   *audio.Context
+	AudioPlayers   map[string]*audio.Player
 	ImageResources map[string]*ebiten.Image
 	Font           *sfnt.Font
 }
 
 func NewGame() *Game {
+	audioCtx := audio.NewContext(48000)
 	return &Game{
 		WorkingDir:   ".",
 		Config:       conf.Default(),
 		Save:         save.Default(),
-		AudioContext: audio.NewContext(48000),
+		AudioContext: audioCtx,
+		AudioPlayers: map[string]*audio.Player{
+			"boop":        GetAudioPlayer(audioCtx, "boop.wav"),
+			"woop":        GetAudioPlayer(audioCtx, "woop.wav"),
+			"menu_switch": GetAudioPlayer(audioCtx, "menu_switch.wav"),
+		},
 		ImageResources: map[string]*ebiten.Image{
 			"capybara1": ebiten.NewImageFromImage(ImageFromFile("capybara_1.png")),
 			"capybara2": ebiten.NewImageFromImage(ImageFromFile("capybara_2.png")),
@@ -59,16 +66,22 @@ func NewGame() *Game {
 	}
 }
 
+// Plays sound and rewinds the player
+func (g *Game) PlaySound(soundKey string) {
+	g.AudioPlayers[soundKey].Play()
+	g.AudioPlayers[soundKey].Rewind()
+}
+
 // Saves configuration information and game data
-func SaveData(game *Game) error {
+func (g *Game) SaveData() error {
 	// Save configuration information and game data
-	err := save.Create(filepath.Join(game.WorkingDir, SaveFileName), game.Save)
+	err := save.Create(filepath.Join(g.WorkingDir, SaveFileName), g.Save)
 	if err != nil {
 		logger.Error("[SaveData] Failed to save game data before closing: %s!", err)
 		return err
 	}
 
-	err = conf.Create(filepath.Join(game.WorkingDir, ConfigurationFileName), game.Config)
+	err = conf.Create(filepath.Join(g.WorkingDir, ConfigurationFileName), g.Config)
 	if err != nil {
 		logger.Error("[SaveData] Failed to save game configuration before closing: %s!", err)
 		return err
@@ -104,10 +117,29 @@ func (g *Game) Update() error {
 		}
 	}
 
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
+		// Decrease volume
+		if g.Config.Volume-0.2 >= 0 {
+			g.Config.Volume -= 0.2
+			for _, player := range g.AudioPlayers {
+				player.SetVolume(g.Config.Volume)
+			}
+		}
+	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
+		// Increase volume
+		if g.Config.Volume+0.2 <= 1.0 {
+			g.Config.Volume += 0.2
+			for _, player := range g.AudioPlayers {
+				player.SetVolume(g.Config.Volume)
+			}
+		}
+	}
+
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		// Click!
 		g.Save.TimesClicked++
 		g.Save.Points++
+		go g.PlaySound("boop")
 	}
 
 	return nil
@@ -170,6 +202,21 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			Hinting: font.HintingVertical,
 		}),
 		10,
+		screen.Bounds().Dy()-30,
+		color.White,
+	)
+
+	// Volume
+	msg = fmt.Sprintf("Volume: %d%%", int(g.Config.Volume*100.0))
+	text.Draw(
+		screen,
+		msg,
+		util.NewFont(g.Font, &opentype.FaceOptions{
+			Size:    24,
+			DPI:     72,
+			Hinting: font.HintingVertical,
+		}),
+		screen.Bounds().Dx()-len(msg)*24,
 		screen.Bounds().Dy()-30,
 		color.White,
 	)
@@ -265,11 +312,16 @@ func main() {
 		}
 	}
 
+	// Set each player's volume to the saved value
+	for _, player := range game.AudioPlayers {
+		player.SetVolume(game.Config.Volume)
+	}
+
 	// Run the game
 	err := ebiten.RunGame(game)
 	if err == ebiten.Termination || err == nil {
 		logger.Info("[Main] Shutting down!")
-		SaveData(game)
+		game.SaveData()
 		os.Exit(0)
 	} else {
 		logger.Error("[Main] Fatal game error: %s", err)

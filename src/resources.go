@@ -5,7 +5,7 @@ import (
 	"embed"
 	"image"
 
-	"github.com/hajimehoshi/ebiten/v2/audio/wav"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/font/sfnt"
 )
@@ -48,16 +48,12 @@ func ResourceGetFont(fontFile string) *sfnt.Font {
 	return tt
 }
 
-func ResourceGetWav(wavFile string) *wav.Stream {
-	data := ResourceGet(wavFile)
-	if data == nil {
-		return nil
-	}
-
-	stream, err := wav.DecodeWithoutResampling(bytes.NewReader(data))
+func GetAudioPlayer(audioContext *audio.Context, audioFile string) *audio.Player {
+	data := bytes.NewReader(ResourceGet(audioFile))
+	player, err := audioContext.NewPlayer(data)
 	if err != nil {
 		return nil
 	}
 
-	return stream
+	return player
 }

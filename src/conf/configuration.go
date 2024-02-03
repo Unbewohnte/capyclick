@@ -9,9 +9,10 @@ import (
 const CurrentVersion uint8 = 1
 
 type Configuration struct {
-	ConfigurationVersion uint8  `json:"configurationVersion"`
-	WindowSize           [2]int `json:"windowSize"`
-	LastWindowPosition   [2]int `json:"lastWindowPosition"`
+	ConfigurationVersion uint8   `json:"configurationVersion"`
+	WindowSize           [2]int  `json:"windowSize"`
+	LastWindowPosition   [2]int  `json:"lastWindowPosition"`
+	Volume               float64 `json:"volume"`
 }
 
 // Returns a reasonable default configuration
@@ -20,6 +21,7 @@ func Default() Configuration {
 		ConfigurationVersion: CurrentVersion,
 		WindowSize:           [2]int{640, 280},
 		LastWindowPosition:   [2]int{0, 0},
+		Volume:               1.0,
 	}
 }
 
