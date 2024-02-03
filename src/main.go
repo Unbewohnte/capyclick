@@ -14,10 +14,12 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/font/sfnt"
 )
 
 const Version string = "v0.1"
@@ -33,36 +35,40 @@ const (
 	SaveFileName          string = "capyclickSave.json"
 )
 
-var WorkingDir string = "."
-
 type Game struct {
-	Config conf.Configuration
-	Save   save.Save
+	WorkingDir     string
+	Config         conf.Configuration
+	Save           save.Save
+	AudioContext   *audio.Context
+	ImageResources map[string]*ebiten.Image
+	Font           *sfnt.Font
 }
 
-// Resource images
-var (
-	ImgCapybara1 = ebiten.NewImageFromImage(ImageFromFile("capybara_1.png"))
-	ImgCapybara2 = ebiten.NewImageFromImage(ImageFromFile("capybara_2.png"))
-	ImgCapybara3 = ebiten.NewImageFromImage(ImageFromFile("capybara_3.png"))
-
-	GameFont = util.NewFont(ResourceGetFont("PixeloidSans-Bold.otf"), &opentype.FaceOptions{
-		Size:    10,
-		DPI:     72,
-		Hinting: font.HintingVertical,
-	})
-)
+func NewGame() *Game {
+	return &Game{
+		WorkingDir:   ".",
+		Config:       conf.Default(),
+		Save:         save.Default(),
+		AudioContext: audio.NewContext(48000),
+		ImageResources: map[string]*ebiten.Image{
+			"capybara1": ebiten.NewImageFromImage(ImageFromFile("capybara_1.png")),
+			"capybara2": ebiten.NewImageFromImage(ImageFromFile("capybara_2.png")),
+			"capybara3": ebiten.NewImageFromImage(ImageFromFile("capybara_3.png")),
+		},
+		Font: ResourceGetFont("PixeloidSans-Bold.otf"),
+	}
+}
 
 // Saves configuration information and game data
 func SaveData(game *Game) error {
 	// Save configuration information and game data
-	err := save.Create(filepath.Join(WorkingDir, SaveFileName), game.Save)
+	err := save.Create(filepath.Join(game.WorkingDir, SaveFileName), game.Save)
 	if err != nil {
 		logger.Error("[SaveData] Failed to save game data before closing: %s!", err)
 		return err
 	}
 
-	err = conf.Create(filepath.Join(WorkingDir, ConfigurationFileName), game.Config)
+	err = conf.Create(filepath.Join(game.WorkingDir, ConfigurationFileName), game.Config)
 	if err != nil {
 		logger.Error("[SaveData] Failed to save game configuration before closing: %s!", err)
 		return err
@@ -112,19 +118,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Black)
 
 	// Capybara
+	scale := 15.0
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(15, 15)
-	op.GeoM.Translate(float64(screen.Bounds().Dx()/3), float64(screen.Bounds().Dy()/3))
-	screen.DrawImage(ImgCapybara1, op)
+	op.GeoM.Scale(scale, scale)
+	width := g.ImageResources["capybara1"].Bounds().Dx() * int(scale)
+	height := g.ImageResources["capybara1"].Bounds().Dy() * int(scale)
+	op.GeoM.Translate(
+		float64(screen.Bounds().Dx()/2)-float64(width/2),
+		float64(screen.Bounds().Dy()/2)-float64(height/2),
+	)
+	screen.DrawImage(g.ImageResources["capybara1"], op)
 
 	// Points
 	msg := fmt.Sprintf("Points: %d", g.Save.Points)
 	text.Draw(
 		screen,
 		msg,
-		GameFont,
+		util.NewFont(g.Font, &opentype.FaceOptions{
+			Size:    24,
+			DPI:     72,
+			Hinting: font.HintingVertical,
+		}),
 		10,
-		20,
+		30,
 		color.White,
 	)
 
@@ -133,9 +149,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		GameFont,
-		screen.Bounds().Dx()-len(msg)*10,
-		20,
+		util.NewFont(g.Font, &opentype.FaceOptions{
+			Size:    24,
+			DPI:     72,
+			Hinting: font.HintingVertical,
+		}),
+		screen.Bounds().Dx()-len(msg)*24,
+		30,
 		color.White,
 	)
 
@@ -144,9 +164,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		GameFont,
+		util.NewFont(g.Font, &opentype.FaceOptions{
+			Size:    24,
+			DPI:     72,
+			Hinting: font.HintingVertical,
+		}),
 		10,
-		screen.Bounds().Dy()-10,
+		screen.Bounds().Dy()-30,
 		color.White,
 	)
 }
@@ -174,10 +198,7 @@ func main() {
 	}
 
 	// Create a game instance
-	var game *Game = &Game{
-		Config: conf.Default(),
-		Save:   save.Default(),
-	}
+	var game *Game = NewGame()
 
 	if !*noFiles {
 		// Work out working directory
@@ -186,17 +207,17 @@ func main() {
 			logger.Error("[Init] Failed to get executable's path: %s", err)
 			os.Exit(1)
 		}
-		WorkingDir = filepath.Dir(exeDir)
+		game.WorkingDir = filepath.Dir(exeDir)
 	} else {
-		WorkingDir = ""
+		game.WorkingDir = ""
 	}
 
 	if !*noFiles {
 		// Open/Create configuration file
 		var config *conf.Configuration
-		config, err := conf.FromFile(filepath.Join(WorkingDir, ConfigurationFileName))
+		config, err := conf.FromFile(filepath.Join(game.WorkingDir, ConfigurationFileName))
 		if err != nil {
-			err = conf.Create(filepath.Join(WorkingDir, ConfigurationFileName), game.Config)
+			err = conf.Create(filepath.Join(game.WorkingDir, ConfigurationFileName), game.Config)
 			if err != nil {
 				logger.Error("[Init] Failed to create a new configuration file: %s", err)
 				os.Exit(1)
@@ -226,9 +247,9 @@ func main() {
 
 	if !*noFiles {
 		// Open/Create save file
-		gameSave, err := save.FromFile(filepath.Join(WorkingDir, SaveFileName))
+		gameSave, err := save.FromFile(filepath.Join(game.WorkingDir, SaveFileName))
 		if err != nil {
-			err = save.Create(filepath.Join(WorkingDir, SaveFileName), game.Save)
+			err = save.Create(filepath.Join(game.WorkingDir, SaveFileName), game.Save)
 			if err != nil {
 				logger.Error("[Init] Failed to create a new save file \"%s\": %s", SaveFileName, err)
 				os.Exit(1)
