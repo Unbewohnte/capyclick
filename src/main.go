@@ -20,8 +20,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
-
-	_ "net/http/pprof"
 )
 
 const Version string = "v0.1"
@@ -37,6 +35,12 @@ const (
 	SaveFileName          string = "capyclickSave.json"
 )
 
+type AnimationData struct {
+	Squish              float64
+	Theta               float64
+	BounceDirectionFlag bool
+}
+
 type Game struct {
 	WorkingDir     string
 	Config         conf.Configuration
@@ -45,6 +49,7 @@ type Game struct {
 	AudioPlayers   map[string]*audio.Player
 	ImageResources map[string]*ebiten.Image
 	Font           font.Face
+	AnimationData  AnimationData
 }
 
 func NewGame() *Game {
@@ -72,14 +77,19 @@ func NewGame() *Game {
 			DPI:     72,
 			Hinting: font.HintingVertical,
 		}),
+		AnimationData: AnimationData{
+			Theta:               0.0,
+			BounceDirectionFlag: true,
+			Squish:              0,
+		},
 	}
 }
 
 // Plays sound and rewinds the player
 func (g *Game) PlaySound(soundKey string) {
 	if strings.TrimSpace(soundKey) != "" {
-		g.AudioPlayers[soundKey].Play()
 		g.AudioPlayers[soundKey].Rewind()
+		g.AudioPlayers[soundKey].Play()
 	}
 }
 
@@ -150,6 +160,7 @@ func (g *Game) Update() error {
 		// Click!
 		g.Save.TimesClicked++
 		g.Save.Points++
+		g.AnimationData.Squish += 0.5
 		go g.PlaySound("boop")
 	}
 
@@ -159,6 +170,17 @@ func (g *Game) Update() error {
 		// Level progression
 		g.Save.Level++
 		go g.PlaySound("levelup")
+	}
+
+	// Capybara Animation
+	if g.AnimationData.Theta >= 0.03 {
+		g.AnimationData.BounceDirectionFlag = false
+	} else if g.AnimationData.Theta <= -0.03 {
+		g.AnimationData.BounceDirectionFlag = true
+	}
+
+	if g.AnimationData.Squish >= 0 {
+		g.AnimationData.Squish -= 0.05
 	}
 
 	return nil
@@ -183,7 +205,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	scale := 10.0
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(scale, scale)
+	if g.AnimationData.BounceDirectionFlag {
+		g.AnimationData.Theta += 0.001
+	} else {
+		g.AnimationData.Theta -= 0.001
+	}
+
+	op.GeoM.Scale(scale+g.AnimationData.Squish, scale-g.AnimationData.Squish)
+
+	op.GeoM.Rotate(g.AnimationData.Theta)
+
 	width := g.ImageResources[capybaraKey].Bounds().Dx() * int(scale)
 	height := g.ImageResources[capybaraKey].Bounds().Dy() * int(scale)
 	op.GeoM.Translate(
