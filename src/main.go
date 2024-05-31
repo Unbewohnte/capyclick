@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -19,7 +20,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/font/sfnt"
+
+	_ "net/http/pprof"
 )
 
 const Version string = "v0.1"
@@ -42,11 +44,13 @@ type Game struct {
 	AudioContext   *audio.Context
 	AudioPlayers   map[string]*audio.Player
 	ImageResources map[string]*ebiten.Image
-	Font           *sfnt.Font
+	Font           font.Face
 }
 
 func NewGame() *Game {
-	audioCtx := audio.NewContext(48000)
+	audioCtx := audio.NewContext(44000)
+	fnt := ResourceGetFont("PixeloidSans-Bold.otf")
+
 	return &Game{
 		WorkingDir:   ".",
 		Config:       conf.Default(),
@@ -56,20 +60,27 @@ func NewGame() *Game {
 			"boop":        GetAudioPlayer(audioCtx, "boop.wav"),
 			"woop":        GetAudioPlayer(audioCtx, "woop.wav"),
 			"menu_switch": GetAudioPlayer(audioCtx, "menu_switch.wav"),
+			"levelup":     GetAudioPlayer(audioCtx, "levelup.wav"),
 		},
 		ImageResources: map[string]*ebiten.Image{
 			"capybara1": ebiten.NewImageFromImage(ImageFromFile("capybara_1.png")),
 			"capybara2": ebiten.NewImageFromImage(ImageFromFile("capybara_2.png")),
 			"capybara3": ebiten.NewImageFromImage(ImageFromFile("capybara_3.png")),
 		},
-		Font: ResourceGetFont("PixeloidSans-Bold.otf"),
+		Font: util.NewFont(fnt, &opentype.FaceOptions{
+			Size:    24,
+			DPI:     72,
+			Hinting: font.HintingVertical,
+		}),
 	}
 }
 
 // Plays sound and rewinds the player
 func (g *Game) PlaySound(soundKey string) {
-	g.AudioPlayers[soundKey].Play()
-	g.AudioPlayers[soundKey].Rewind()
+	if strings.TrimSpace(soundKey) != "" {
+		g.AudioPlayers[soundKey].Play()
+		g.AudioPlayers[soundKey].Rewind()
+	}
 }
 
 // Saves configuration information and game data
@@ -142,6 +153,14 @@ func (g *Game) Update() error {
 		go g.PlaySound("boop")
 	}
 
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) &&
+		g.Save.Points > 0 &&
+		g.Save.Points%100 == 0 {
+		// Level progression
+		g.Save.Level++
+		go g.PlaySound("levelup")
+	}
+
 	return nil
 }
 
@@ -150,27 +169,35 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Black)
 
 	// Capybara
-	scale := 15.0
+	var capybaraKey string
+	switch g.Save.Level {
+	case 1:
+		capybaraKey = "capybara1"
+	case 2:
+		capybaraKey = "capybara2"
+	case 3:
+		capybaraKey = "capybara3"
+	default:
+		capybaraKey = "capybara3"
+	}
+
+	scale := 10.0
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(scale, scale)
-	width := g.ImageResources["capybara1"].Bounds().Dx() * int(scale)
-	height := g.ImageResources["capybara1"].Bounds().Dy() * int(scale)
+	width := g.ImageResources[capybaraKey].Bounds().Dx() * int(scale)
+	height := g.ImageResources[capybaraKey].Bounds().Dy() * int(scale)
 	op.GeoM.Translate(
 		float64(screen.Bounds().Dx()/2)-float64(width/2),
 		float64(screen.Bounds().Dy()/2)-float64(height/2),
 	)
-	screen.DrawImage(g.ImageResources["capybara1"], op)
+	screen.DrawImage(g.ImageResources[capybaraKey], op)
 
 	// Points
 	msg := fmt.Sprintf("Points: %d", g.Save.Points)
 	text.Draw(
 		screen,
 		msg,
-		util.NewFont(g.Font, &opentype.FaceOptions{
-			Size:    24,
-			DPI:     72,
-			Hinting: font.HintingVertical,
-		}),
+		g.Font,
 		10,
 		30,
 		color.White,
@@ -181,26 +208,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		util.NewFont(g.Font, &opentype.FaceOptions{
-			Size:    24,
-			DPI:     72,
-			Hinting: font.HintingVertical,
-		}),
+		g.Font,
 		screen.Bounds().Dx()-len(msg)*24,
 		30,
 		color.White,
 	)
 
 	// Times Clicked
-	msg = fmt.Sprintf("Times Clicked: %d", g.Save.TimesClicked)
+	msg = fmt.Sprintf("Clicks: %d", g.Save.TimesClicked)
 	text.Draw(
 		screen,
 		msg,
-		util.NewFont(g.Font, &opentype.FaceOptions{
-			Size:    24,
-			DPI:     72,
-			Hinting: font.HintingVertical,
-		}),
+		g.Font,
 		10,
 		screen.Bounds().Dy()-30,
 		color.White,
@@ -211,12 +230,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		util.NewFont(g.Font, &opentype.FaceOptions{
-			Size:    24,
-			DPI:     72,
-			Hinting: font.HintingVertical,
-		}),
-		screen.Bounds().Dx()-len(msg)*24,
+		g.Font,
+		screen.Bounds().Dx()-len(msg)*19,
 		screen.Bounds().Dy()-30,
 		color.White,
 	)
