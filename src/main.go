@@ -68,9 +68,11 @@ func NewGame() *Game {
 			"levelup":     GetAudioPlayer(audioCtx, "levelup.wav"),
 		},
 		ImageResources: map[string]*ebiten.Image{
-			"capybara1": ebiten.NewImageFromImage(ImageFromFile("capybara_1.png")),
-			"capybara2": ebiten.NewImageFromImage(ImageFromFile("capybara_2.png")),
-			"capybara3": ebiten.NewImageFromImage(ImageFromFile("capybara_3.png")),
+			"capybara1":   ebiten.NewImageFromImage(ImageFromFile("capybara_1.png")),
+			"capybara2":   ebiten.NewImageFromImage(ImageFromFile("capybara_2.png")),
+			"capybara3":   ebiten.NewImageFromImage(ImageFromFile("capybara_3.png")),
+			"background1": ebiten.NewImageFromImage(ImageFromFile("background_1.png")),
+			"background2": ebiten.NewImageFromImage(ImageFromFile("background_2.png")),
 		},
 		Font: util.NewFont(fnt, &opentype.FaceOptions{
 			Size:    24,
@@ -190,6 +192,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Background
 	screen.Fill(color.Black)
 
+	backBounds := g.ImageResources["background1"].Bounds()
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(
+		float64(screen.Bounds().Dx())/float64(backBounds.Dx()),
+		float64(screen.Bounds().Dy())/float64(backBounds.Dy()),
+	)
+	screen.DrawImage(g.ImageResources["background1"], op)
+
 	// Capybara
 	var capybaraKey string
 	switch g.Save.Level {
@@ -204,7 +214,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	scale := 10.0
-	op := &ebiten.DrawImageOptions{}
+	op = &ebiten.DrawImageOptions{}
 	if g.AnimationData.BounceDirectionFlag {
 		g.AnimationData.Theta += 0.001
 	} else {
