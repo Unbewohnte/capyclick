@@ -2,7 +2,7 @@ game:=capyclick
 desktopBin:=bin/desktop
 webBin:=bin/web
 wasmHtml:=build/capyclick.html
-wasmExec:=$(shell go env GOROOT)
+wasmExec:=$(shell go env GOROOT)/misc/wasm/wasm_exec.js
 
 current: clean environment
 	cd src && go build && mv $(game)* ../$(desktopBin)
@@ -10,7 +10,7 @@ current: clean environment
 web: environment
 	cd src && env GOOS=js GOARCH=wasm go build -o $(game).wasm . && mv $(game).wasm ../$(webBin)
 	cp $(wasmHtml) $(webBin)
-	cp $(wasmExec)/misc/wasm/wasm_exec.js $(webBin)
+	cp $(wasmExec) $(webBin)
 
 desktop: clean environment
 	cd src && GOOS=windows GOARCH=amd64 go build && mv $(game)* ../$(desktopBin)
