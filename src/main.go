@@ -42,14 +42,15 @@ type AnimationData struct {
 }
 
 type Game struct {
-	WorkingDir     string
-	Config         conf.Configuration
-	Save           save.Save
-	AudioContext   *audio.Context
-	AudioPlayers   map[string]*audio.Player
-	ImageResources map[string]*ebiten.Image
-	Font           font.Face
-	AnimationData  AnimationData
+	WorkingDir          string
+	Config              conf.Configuration
+	Save                save.Save
+	AudioContext        *audio.Context
+	AudioPlayers        map[string]*audio.Player
+	ImageResources      map[string]*ebiten.Image
+	Font                font.Face
+	AnimationData       AnimationData
+	PassiveIncomeTicker int
 }
 
 func NewGame() *Game {
@@ -84,6 +85,7 @@ func NewGame() *Game {
 			BounceDirectionFlag: true,
 			Squish:              0,
 		},
+		PassiveIncomeTicker: 0,
 	}
 }
 
@@ -163,15 +165,16 @@ func (g *Game) Update() error {
 		g.Save.TimesClicked++
 		g.Save.Points++
 		g.AnimationData.Squish += 0.5
-		go g.PlaySound("boop")
+		g.PlaySound("boop")
 	}
 
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) &&
-		g.Save.Points > 0 &&
-		g.Save.Points%100 == 0 {
+	if g.Save.Points > 0 && g.Save.Points%100 == 0 {
 		// Level progression
 		g.Save.Level++
-		go g.PlaySound("levelup")
+		g.Save.PassiveIncome++
+		// Bump points number immediately in order to not mistakengly level up on the next update
+		g.Save.Points++
+		g.PlaySound("levelup")
 	}
 
 	// Capybara Animation
@@ -183,6 +186,14 @@ func (g *Game) Update() error {
 
 	if g.AnimationData.Squish >= 0 {
 		g.AnimationData.Squish -= 0.05
+	}
+
+	// Passive points income
+	if g.PassiveIncomeTicker == ebiten.TPS() {
+		g.PassiveIncomeTicker = 0
+		g.Save.Points += g.Save.PassiveIncome
+	} else {
+		g.PassiveIncomeTicker++
 	}
 
 	return nil
@@ -250,7 +261,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screen,
 		msg,
 		g.Font,
-		screen.Bounds().Dx()-len(msg)*24,
+		screen.Bounds().Dx()-len(msg)*19,
 		30,
 		color.White,
 	)
@@ -262,7 +273,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		msg,
 		g.Font,
 		10,
-		screen.Bounds().Dy()-30,
+		// screen.Bounds().Dy()-30,
+		screen.Bounds().Dy()-24*2,
 		color.White,
 	)
 
@@ -272,8 +284,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screen,
 		msg,
 		g.Font,
-		screen.Bounds().Dx()-len(msg)*19,
-		screen.Bounds().Dy()-30,
+		// screen.Bounds().Dx()-len(msg)*17,
+		10,
+		screen.Bounds().Dy()-24,
 		color.White,
 	)
 }
@@ -342,7 +355,7 @@ func main() {
 	ebiten.SetWindowClosingHandled(true) // So we can save data
 	ebiten.SetRunnableOnUnfocused(true)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetWindowSizeLimits(480, 320, -1, -1)
+	ebiten.SetWindowSizeLimits(380, 576, -1, -1)
 	ebiten.SetTPS(60)
 	ebiten.SetWindowSize(game.Config.WindowSize[0], game.Config.WindowSize[1])
 	ebiten.SetWindowPosition(game.Config.LastWindowPosition[0], game.Config.LastWindowPosition[1])

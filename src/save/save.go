@@ -16,6 +16,7 @@ type Save struct {
 	CreatedUnix    uint64 `json:"createdUnix"`
 	LastOpenedUnix uint64 `json:"lastOpenedUnix"`
 	TimesClicked   uint64 `json:"timesClicked"`
+	PassiveIncome  uint64 `json:"passiveIncome"`
 }
 
 // Returns a blank save file structure
@@ -27,6 +28,7 @@ func Default() Save {
 		CreatedUnix:    uint64(time.Now().Unix()),
 		LastOpenedUnix: uint64(time.Now().Unix()),
 		TimesClicked:   0,
+		PassiveIncome:  0,
 	}
 }
 
