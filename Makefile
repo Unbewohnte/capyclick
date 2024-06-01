@@ -2,6 +2,7 @@ game:=capyclick
 desktopBin:=bin/desktop
 webBin:=bin/web
 wasmHtml:=build/capyclick.html
+wasmHtmlIFrame:=build/capyclick_iframe.html
 wasmExec:=$(shell go env GOROOT)/misc/wasm/wasm_exec.js
 
 current: clean environment
@@ -10,6 +11,7 @@ current: clean environment
 web: environment
 	cd src && env GOOS=js GOARCH=wasm go build -o $(game).wasm . && mv $(game).wasm ../$(webBin)
 	cp $(wasmHtml) $(webBin)
+	cp $(wasmHtmlIFrame) $(webBin)
 	cp $(wasmExec) $(webBin)
 
 desktop: clean environment

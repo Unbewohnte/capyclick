@@ -160,7 +160,8 @@ func (g *Game) Update() error {
 		}
 	}
 
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) ||
+		len(inpututil.AppendJustPressedTouchIDs(nil)) != 0 {
 		// Click!
 		g.Save.TimesClicked++
 		g.Save.Points++
@@ -279,7 +280,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	)
 
 	// Volume
-	msg = fmt.Sprintf("Volume: %d%%", int(g.Config.Volume*100.0))
+	msg = fmt.Sprintf("Volume: %d%% (← or →)", int(g.Config.Volume*100.0))
 	text.Draw(
 		screen,
 		msg,
