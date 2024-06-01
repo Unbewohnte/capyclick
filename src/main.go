@@ -25,9 +25,9 @@ import (
 const Version string = "v0.1"
 
 var (
-	silent  *bool = flag.Bool("silent", false, "Set to true in order to discard all logging")
-	version *bool = flag.Bool("version", false, "Prints version information")
-	noFiles *bool = flag.Bool("no-files", false, "Run the game without outputting/reading configuration or save files")
+	silent    *bool = flag.Bool("silent", false, "Set to true in order to discard all logging")
+	version   *bool = flag.Bool("version", false, "Prints version information")
+	saveFiles *bool = flag.Bool("saveFiles", false, "Run the game with configuration and save files")
 )
 
 const (
@@ -316,7 +316,7 @@ func main() {
 	// Create a game instance
 	var game *Game = NewGame()
 
-	if !*noFiles {
+	if *saveFiles {
 		// Work out working directory
 		exeDir, err := os.Executable()
 		if err != nil {
@@ -328,7 +328,7 @@ func main() {
 		game.WorkingDir = ""
 	}
 
-	if !*noFiles {
+	if *saveFiles {
 		// Open/Create configuration file
 		var config *conf.Configuration
 		config, err := conf.FromFile(filepath.Join(game.WorkingDir, ConfigurationFileName))
@@ -361,7 +361,7 @@ func main() {
 	ebiten.SetWindowPosition(game.Config.LastWindowPosition[0], game.Config.LastWindowPosition[1])
 	ebiten.SetWindowTitle(fmt.Sprintf("Capyclick %s", Version))
 
-	if !*noFiles {
+	if *saveFiles {
 		// Open/Create save file
 		gameSave, err := save.FromFile(filepath.Join(game.WorkingDir, SaveFileName))
 		if err != nil {
@@ -390,7 +390,9 @@ func main() {
 	err := ebiten.RunGame(game)
 	if err == ebiten.Termination || err == nil {
 		logger.Info("[Main] Shutting down!")
-		game.SaveData()
+		if *saveFiles {
+			game.SaveData()
+		}
 		os.Exit(0)
 	} else {
 		logger.Error("[Main] Fatal game error: %s", err)
