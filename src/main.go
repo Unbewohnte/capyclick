@@ -187,7 +187,8 @@ func (g *Game) Update() error {
 		g.PlaySound("boop")
 	}
 
-	if g.Save.Points > 0 && g.Save.Points%100 == 0 {
+	/////////// TODO
+	if g.Save.Points > 0 && g.Save.Points%100 < uint64(g.Save.Level) {
 		// Level progression
 		g.Save.Level++
 		g.Save.PassiveIncome++
@@ -243,7 +244,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		capybaraKey = "capybara3"
 	}
 
-	scale := 10.0
 	op = &ebiten.DrawImageOptions{}
 	if g.AnimationData.BounceDirectionFlag {
 		g.AnimationData.Theta += 0.001
@@ -251,16 +251,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.AnimationData.Theta -= 0.001
 	}
 
-	op.GeoM.Scale(scale+g.AnimationData.Squish, scale-g.AnimationData.Squish)
-
+	capybaraBounds := g.ImageResources[capybaraKey].Bounds()
+	scaleX := float64(screen.Bounds().Dx()) / float64(capybaraBounds.Dx()) / 2.5
+	scaleY := float64(screen.Bounds().Dy()) / float64(capybaraBounds.Dy()) / 2.5
+	op.GeoM.Scale(
+		scaleX+g.AnimationData.Squish,
+		scaleY-g.AnimationData.Squish,
+	)
 	op.GeoM.Rotate(g.AnimationData.Theta)
 
-	width := g.ImageResources[capybaraKey].Bounds().Dx() * int(scale)
-	height := g.ImageResources[capybaraKey].Bounds().Dy() * int(scale)
+	capyWidth := float64(g.ImageResources[capybaraKey].Bounds().Dx()) * scaleX
+	capyHeight := float64(g.ImageResources[capybaraKey].Bounds().Dy()) * scaleY
 	op.GeoM.Translate(
-		float64(screen.Bounds().Dx()/2)-float64(width/2),
-		float64(screen.Bounds().Dy()/2)-float64(height/2),
+		float64(screen.Bounds().Dx()/2)-capyWidth/2,
+		float64(screen.Bounds().Dy()/2)-capyHeight/2,
 	)
+
 	screen.DrawImage(g.ImageResources[capybaraKey], op)
 
 	// Points

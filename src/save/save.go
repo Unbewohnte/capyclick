@@ -30,7 +30,7 @@ const CurrentVersion uint8 = 1
 type Save struct {
 	SaveVersion    uint8  `json:"saveVersion"`
 	Points         uint64 `json:"points"`
-	Level          uint8  `json:"level"`
+	Level          uint32 `json:"level"`
 	CreatedUnix    uint64 `json:"createdUnix"`
 	LastOpenedUnix uint64 `json:"lastOpenedUnix"`
 	TimesClicked   uint64 `json:"timesClicked"`
