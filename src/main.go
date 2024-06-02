@@ -133,6 +133,10 @@ func (g *Game) SaveData() error {
 	return nil
 }
 
+func getPointsForLevel(level uint32) uint64 {
+	return 100 * uint64(level)
+}
+
 func (g *Game) Update() error {
 	if ebiten.IsWindowBeingClosed() {
 		return ebiten.Termination
@@ -187,16 +191,6 @@ func (g *Game) Update() error {
 		g.PlaySound("boop")
 	}
 
-	/////////// TODO
-	if g.Save.Points > 0 && g.Save.Points%100 < uint64(g.Save.Level) {
-		// Level progression
-		g.Save.Level++
-		g.Save.PassiveIncome++
-		// Bump points number immediately in order to not mistakengly level up on the next update
-		g.Save.Points++
-		g.PlaySound("levelup")
-	}
-
 	// Capybara Animation
 	if g.AnimationData.Theta >= 0.03 {
 		g.AnimationData.BounceDirectionFlag = false
@@ -214,6 +208,13 @@ func (g *Game) Update() error {
 		g.Save.Points += g.Save.PassiveIncome
 	} else {
 		g.PassiveIncomeTicker++
+	}
+
+	if g.Save.Points > 0 && g.Save.Points >= getPointsForLevel(g.Save.Level) {
+		// Level progression
+		g.Save.Level++
+		g.Save.PassiveIncome++
+		g.PlaySound("levelup")
 	}
 
 	return nil
