@@ -253,16 +253,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	capybaraBounds := g.ImageResources[capybaraKey].Bounds()
-	scaleX := float64(screen.Bounds().Dx()) / float64(capybaraBounds.Dx()) / 2.5
-	scaleY := float64(screen.Bounds().Dy()) / float64(capybaraBounds.Dy()) / 2.5
+	scale := float64(screen.Bounds().Dx()) / float64(capybaraBounds.Dx()) / 2.5
 	op.GeoM.Scale(
-		scaleX+g.AnimationData.Squish,
-		scaleY-g.AnimationData.Squish,
+		scale+g.AnimationData.Squish,
+		scale-g.AnimationData.Squish,
 	)
 	op.GeoM.Rotate(g.AnimationData.Theta)
 
-	capyWidth := float64(g.ImageResources[capybaraKey].Bounds().Dx()) * scaleX
-	capyHeight := float64(g.ImageResources[capybaraKey].Bounds().Dy()) * scaleY
+	capyWidth := float64(g.ImageResources[capybaraKey].Bounds().Dx()) * scale
+	capyHeight := float64(g.ImageResources[capybaraKey].Bounds().Dy()) * scale
 	op.GeoM.Translate(
 		float64(screen.Bounds().Dx()/2)-capyWidth/2,
 		float64(screen.Bounds().Dy()/2)-capyHeight/2,
