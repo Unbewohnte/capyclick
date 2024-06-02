@@ -66,7 +66,7 @@ type Game struct {
 	AudioContext        *audio.Context
 	AudioPlayers        map[string]*audio.Player
 	ImageResources      map[string]*ebiten.Image
-	Font                font.Face
+	FontFace            font.Face
 	AnimationData       AnimationData
 	PassiveIncomeTicker int
 }
@@ -93,8 +93,8 @@ func NewGame() *Game {
 			"background1": ebiten.NewImageFromImage(ImageFromFile("background_1.png")),
 			"background2": ebiten.NewImageFromImage(ImageFromFile("background_2.png")),
 		},
-		Font: util.NewFont(fnt, &opentype.FaceOptions{
-			Size:    24,
+		FontFace: util.NewFace(fnt, &opentype.FaceOptions{
+			Size:    32,
 			DPI:     72,
 			Hinting: font.HintingVertical,
 		}),
@@ -275,9 +275,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		g.Font,
+		g.FontFace,
 		10,
-		30,
+		g.FontFace.Metrics().Height.Ceil(),
 		color.White,
 	)
 
@@ -286,9 +286,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		g.Font,
-		screen.Bounds().Dx()-len(msg)*19,
-		30,
+		g.FontFace,
+		10,
+		g.FontFace.Metrics().Height.Ceil()*2,
 		color.White,
 	)
 
@@ -297,10 +297,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		g.Font,
+		g.FontFace,
 		10,
-		// screen.Bounds().Dy()-30,
-		screen.Bounds().Dy()-24*2,
+		screen.Bounds().Dy()-g.FontFace.Metrics().Height.Ceil()*2,
 		color.White,
 	)
 
@@ -309,10 +308,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	text.Draw(
 		screen,
 		msg,
-		g.Font,
-		// screen.Bounds().Dx()-len(msg)*17,
+		g.FontFace,
 		10,
-		screen.Bounds().Dy()-24,
+		screen.Bounds().Dy()-g.FontFace.Metrics().Height.Ceil(),
 		color.White,
 	)
 }
@@ -381,7 +379,7 @@ func main() {
 	ebiten.SetWindowClosingHandled(true) // So we can save data
 	ebiten.SetRunnableOnUnfocused(true)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetWindowSizeLimits(380, 576, -1, -1)
+	ebiten.SetWindowSizeLimits(512, 576, -1, -1)
 	ebiten.SetTPS(60)
 	ebiten.SetWindowSize(game.Config.WindowSize[0], game.Config.WindowSize[1])
 	ebiten.SetWindowPosition(game.Config.LastWindowPosition[0], game.Config.LastWindowPosition[1])
