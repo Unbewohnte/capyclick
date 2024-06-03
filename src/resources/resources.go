@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package main
+package resources
 
 import (
 	"bytes"
@@ -32,7 +32,7 @@ import (
 var ResourcesFS embed.FS
 
 // Reads file with given filename from embedded resources FS and returns its contents
-func ResourceGet(filename string) []byte {
+func Get(filename string) []byte {
 	data, err := ResourcesFS.ReadFile("resources/" + filename)
 	if err != nil {
 		return nil
@@ -43,7 +43,7 @@ func ResourceGet(filename string) []byte {
 
 // Returns a decoded image from an image file
 func ImageFromFile(filename string) image.Image {
-	data := ResourceGet(filename)
+	data := Get(filename)
 	if data == nil {
 		return nil
 	}
@@ -57,8 +57,8 @@ func ImageFromFile(filename string) image.Image {
 	return img
 }
 
-func ResourceGetFont(fontFile string) *sfnt.Font {
-	tt, err := opentype.Parse(ResourceGet(fontFile))
+func GetFont(fontFile string) *sfnt.Font {
+	tt, err := opentype.Parse(Get(fontFile))
 	if err != nil {
 		return nil
 	}
@@ -67,7 +67,7 @@ func ResourceGetFont(fontFile string) *sfnt.Font {
 }
 
 func GetAudioPlayer(audioContext *audio.Context, audioFile string) *audio.Player {
-	data := bytes.NewReader(ResourceGet(audioFile))
+	data := bytes.NewReader(Get(audioFile))
 	player, err := audioContext.NewPlayer(data)
 	if err != nil {
 		return nil
