@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"image/color"
 	"path/filepath"
-	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -19,65 +18,44 @@ import (
 	"golang.org/x/image/font/opentype"
 )
 
-type AnimationData struct {
-	Squish              float64
-	Theta               float64
-	BounceDirectionFlag bool
-}
-
 type Game struct {
 	WorkingDir          string
 	Config              conf.Configuration
 	Save                save.Save
-	AudioContext        *audio.Context
 	AudioPlayers        map[string]*audio.Player
-	ImageResources      map[string]*ebiten.Image
 	FontFace            font.Face
-	AnimationData       AnimationData
 	PassiveIncomeTicker int
+	Capybara            *Capybara
+	Background          *Sprite
+	MandarinRain        *MandarinRain
 }
 
-func NewGame() *Game {
+func NewGame() Game {
 	audioCtx := audio.NewContext(44000)
 	fnt := resources.GetFont("PixeloidSans-Bold.otf")
 
-	return &Game{
-		WorkingDir:   ".",
-		Config:       conf.Default(),
-		Save:         save.Default(),
-		AudioContext: audioCtx,
+	return Game{
+		WorkingDir: ".",
+		Config:     conf.Default(),
+		Save:       save.Default(),
 		AudioPlayers: map[string]*audio.Player{
-			"boop":        resources.GetAudioPlayer(audioCtx, "boop.wav"),
-			"woop":        resources.GetAudioPlayer(audioCtx, "woop.wav"),
-			"menu_switch": resources.GetAudioPlayer(audioCtx, "menu_switch.wav"),
-			"levelup":     resources.GetAudioPlayer(audioCtx, "levelup.wav"),
+			"boop":                    resources.GetAudioPlayer(audioCtx, "boop.wav"),
+			"woop":                    resources.GetAudioPlayer(audioCtx, "woop.wav"),
+			"menu_switch":             resources.GetAudioPlayer(audioCtx, "menu_switch.wav"),
+			"levelup":                 resources.GetAudioPlayer(audioCtx, "levelup.wav"),
+			"mandarin_box_full":       resources.GetAudioPlayer(audioCtx, "mandarin_box_full.wav"),
+			"orange_put":              resources.GetAudioPlayer(audioCtx, "orange_put.wav"),
+			"mandarin_rain_completed": resources.GetAudioPlayer(audioCtx, "mandarin_rain_completed.wav"),
 		},
-		ImageResources: map[string]*ebiten.Image{
-			"capybara1":   ebiten.NewImageFromImage(resources.ImageFromFile("capybara_1.png")),
-			"capybara2":   ebiten.NewImageFromImage(resources.ImageFromFile("capybara_2.png")),
-			"capybara3":   ebiten.NewImageFromImage(resources.ImageFromFile("capybara_3.png")),
-			"background1": ebiten.NewImageFromImage(resources.ImageFromFile("background_1.png")),
-			"background2": ebiten.NewImageFromImage(resources.ImageFromFile("background_2.png")),
-		},
+		Capybara:   NewCapybara(NewSpriteFromFile("capybara_1.png")),
+		Background: NewSpriteFromFile("background_1.png"),
 		FontFace: util.NewFace(fnt, &opentype.FaceOptions{
 			Size:    32,
 			DPI:     72,
 			Hinting: font.HintingVertical,
 		}),
-		AnimationData: AnimationData{
-			Theta:               0.0,
-			BounceDirectionFlag: true,
-			Squish:              0,
-		},
 		PassiveIncomeTicker: 0,
-	}
-}
-
-// Plays sound and rewinds the player
-func (g *Game) PlaySound(soundKey string) {
-	if strings.TrimSpace(soundKey) != "" {
-		g.AudioPlayers[soundKey].Rewind()
-		g.AudioPlayers[soundKey].Play()
+		MandarinRain:        NewMandarinRain(3, 8),
 	}
 }
 
@@ -99,22 +77,10 @@ func (g *Game) SaveData(saveFileName string, configurationFileName string) error
 	return nil
 }
 
-// Returns how many points required to be considered of level
-func pointsForLevel(level uint32) uint64 {
-	return 25 * uint64(level*level)
-}
-
 func (g *Game) Update() error {
 	if ebiten.IsWindowBeingClosed() {
 		return ebiten.Termination
 	}
-
-	// Update configuration and save information
-	width, height := ebiten.WindowSize()
-	g.Config.WindowSize = [2]int{width, height}
-
-	x, y := ebiten.WindowPosition()
-	g.Config.LastWindowPosition = [2]int{x, y}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		// Exit
@@ -122,31 +88,19 @@ func (g *Game) Update() error {
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyF12) {
-		if ebiten.IsFullscreen() {
-			// Turn fullscreen off
-			ebiten.SetFullscreen(false)
-		} else {
-			// Go fullscreen
-			ebiten.SetFullscreen(true)
-		}
+		g.ToggleFullscreen()
 	}
+
+	g.SaveWindowGeometry()
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
 		// Decrease volume
-		if g.Config.Volume-0.2 >= 0 {
-			g.Config.Volume -= 0.2
-			for _, player := range g.AudioPlayers {
-				player.SetVolume(g.Config.Volume)
-			}
-		}
-	} else if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
+		g.DecreaseVolume(0.2)
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
 		// Increase volume
-		if g.Config.Volume+0.2 <= 1.0 {
-			g.Config.Volume += 0.2
-			for _, player := range g.AudioPlayers {
-				player.SetVolume(g.Config.Volume)
-			}
-		}
+		g.IncreaseVolume(0.2)
 	}
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) ||
@@ -154,19 +108,7 @@ func (g *Game) Update() error {
 		// Click!
 		g.Save.TimesClicked++
 		g.Save.Points++
-		g.AnimationData.Squish += 0.5
 		g.PlaySound("woop")
-	}
-
-	// Capybara Animation
-	if g.AnimationData.Theta >= 0.03 {
-		g.AnimationData.BounceDirectionFlag = false
-	} else if g.AnimationData.Theta <= -0.03 {
-		g.AnimationData.BounceDirectionFlag = true
-	}
-
-	if g.AnimationData.Squish >= 0 {
-		g.AnimationData.Squish -= 0.05
 	}
 
 	// Passive points income
@@ -184,6 +126,25 @@ func (g *Game) Update() error {
 		g.PlaySound("levelup")
 	}
 
+	// Capybara animation update
+	g.Capybara.Update()
+
+	if !g.MandarinRain.InProgress && g.Save.TimesClicked > 0 && g.Save.TimesClicked%100 == 0 {
+		// Have some oranges!
+		g.MandarinRain.Run()
+		logger.Info("Started mandarin rain at %d points!", g.Save.Points)
+	}
+
+	if g.MandarinRain.InProgress {
+		// Calculate mandarin rain logic for this step
+		g.MandarinRain.Update(g)
+	}
+
+	if g.MandarinRain.Completed {
+		// Prepare a new mandarin rain
+		g.MandarinRain = NewMandarinRain(3, 8)
+	}
+
 	return nil
 }
 
@@ -191,50 +152,20 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Background
 	screen.Fill(color.Black)
 
-	backBounds := g.ImageResources["background1"].Bounds()
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(
-		float64(screen.Bounds().Dx())/float64(backBounds.Dx()),
-		float64(screen.Bounds().Dy())/float64(backBounds.Dy()),
+		float64(screen.Bounds().Dx())/float64(g.Background.Img.Bounds().Dx()),
+		float64(screen.Bounds().Dy())/float64(g.Background.Img.Bounds().Dy()),
 	)
-	screen.DrawImage(g.ImageResources["background1"], op)
+	screen.DrawImage(g.Background.Img, op)
 
 	// Capybara
-	var capybaraKey string
-	switch g.Save.Level {
-	case 1:
-		capybaraKey = "capybara1"
-	case 2:
-		capybaraKey = "capybara2"
-	case 3:
-		capybaraKey = "capybara3"
-	default:
-		capybaraKey = "capybara3"
+	g.Capybara.Draw(screen, g.Save.Level)
+
+	// Mandarin rain
+	if g.MandarinRain.InProgress {
+		g.MandarinRain.Draw(screen)
 	}
-
-	op = &ebiten.DrawImageOptions{}
-	if g.AnimationData.BounceDirectionFlag {
-		g.AnimationData.Theta += 0.001
-	} else {
-		g.AnimationData.Theta -= 0.001
-	}
-
-	capybaraBounds := g.ImageResources[capybaraKey].Bounds()
-	scale := float64(screen.Bounds().Dx()) / float64(capybaraBounds.Dx()) / 2.5
-	op.GeoM.Scale(
-		scale+g.AnimationData.Squish,
-		scale-g.AnimationData.Squish,
-	)
-	op.GeoM.Rotate(g.AnimationData.Theta)
-
-	capyWidth := float64(g.ImageResources[capybaraKey].Bounds().Dx()) * scale
-	capyHeight := float64(g.ImageResources[capybaraKey].Bounds().Dy()) * scale
-	op.GeoM.Translate(
-		float64(screen.Bounds().Dx()/2)-capyWidth/2,
-		float64(screen.Bounds().Dy()/2)-capyHeight/2,
-	)
-
-	screen.DrawImage(g.ImageResources[capybaraKey], op)
 
 	// Points
 	msg := fmt.Sprintf("Points: %d", g.Save.Points)

@@ -28,6 +28,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -35,7 +36,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-const Version string = "v0.1"
+const Version string = "v0.1-release"
 
 var (
 	silent    *bool = flag.Bool("silent", false, "Set to true in order to discard all logging")
@@ -66,7 +67,7 @@ func main() {
 	}
 
 	// Create a game instance
-	var game *game.Game = game.NewGame()
+	var game game.Game = game.NewGame()
 
 	if *saveFiles {
 		// Work out working directory
@@ -138,8 +139,11 @@ func main() {
 		player.SetVolume(game.Config.Volume)
 	}
 
+	// Set up RNG
+	rand.Seed(time.Now().UnixNano())
+
 	// Run the game
-	err := ebiten.RunGame(game)
+	err := ebiten.RunGame(&game)
 	if err == ebiten.Termination || err == nil {
 		logger.Info("[Main] Shutting down!")
 		if *saveFiles {
