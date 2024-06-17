@@ -1,7 +1,6 @@
 package game
 
 import (
-	"image"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -18,12 +17,12 @@ type MandarinRain struct {
 	mandarinsInBox       uint16
 	boxFull              bool
 	mandarinCountRange   [2]uint16
-	screenBounds         image.Rectangle
+	// screenBounds         image.Rectangle
 }
 
 func NewMandarinRain(from uint16, to uint16) *MandarinRain {
 	rain := MandarinRain{}
-	rain.screenBounds = WindowBounds()
+	// rain.screenBounds = WindowBounds()
 	rain.InProgress = false
 	rain.mandarinInitialCount = uint16(rand.Int31n(int32(to-from)) + int32(from))
 	rain.mandarinCountRange = [2]uint16{from, to}
@@ -42,29 +41,26 @@ func NewMandarinRain(from uint16, to uint16) *MandarinRain {
 	return &rain
 }
 
-func (mr *MandarinRain) Run() {
+func (mr *MandarinRain) Run(game *Game) {
 	if mr.InProgress {
 		return
 	}
 
-	mr.screenBounds = WindowBounds()
 	mr.InProgress = true
 
 	// Move oranges to random positions on the top of the screen
 	for _, orange := range mr.Mandarins {
-		orange.Sprite.MoveTo(float64(rand.Int31n(int32(mr.screenBounds.Bounds().Dx()-orange.Sprite.RealBounds().Dx()))), 10.0)
+		orange.Sprite.MoveTo(float64(rand.Int31n(int32(game.Screen.Bounds().Dx()-orange.Sprite.Img.Bounds().Dx()))), 10.0, game.Screen)
 	}
 
 	// Create mandarin box
 	mr.MandarinBox.Sprite.MoveTo(
-		float64(rand.Int31n(int32(mr.screenBounds.Bounds().Dx()-mr.MandarinBox.Sprite.RealBounds().Dx()))),
-		10.0,
+		float64(rand.Int31n(int32(game.Screen.Bounds().Dx()-mr.MandarinBox.Sprite.Img.Bounds().Dx()))),
+		10.0, game.Screen,
 	)
 }
 
 func (mr *MandarinRain) Update(game *Game) {
-	mr.screenBounds = WindowBounds()
-
 	cPosX, cPosY := ebiten.CursorPosition()
 	var tPosX int = 0
 	var tPosY int = 0
@@ -109,7 +105,7 @@ func (mr *MandarinRain) Update(game *Game) {
 
 		// Constraints
 		// Right
-		if oX+float64(oBounds.Dx()) >= float64(mr.screenBounds.Dx()) {
+		if oX+float64(oBounds.Dx()) >= float64(game.Screen.Bounds().Dx()) {
 			orange.Velocity.Vx = -orange.Velocity.Vx * 0.4
 		}
 
@@ -124,7 +120,7 @@ func (mr *MandarinRain) Update(game *Game) {
 		}
 
 		// Bottom
-		if oY+float64(oBounds.Dy()) >= float64(mr.screenBounds.Dy()) {
+		if oY+float64(oBounds.Dy()) >= float64(game.Screen.Bounds().Dy()) {
 			orange.Velocity.Vx = orange.Velocity.Vx * 0.4 // friction on the floor
 			orange.Velocity.Vy = -orange.Velocity.Vy * 0.4
 		}
@@ -133,7 +129,7 @@ func (mr *MandarinRain) Update(game *Game) {
 		orange.Sprite.Y += orange.Velocity.Vy
 
 		// Move the orange
-		orange.Sprite.MoveTo(orange.Sprite.X, orange.Sprite.Y)
+		orange.Sprite.MoveTo(orange.Sprite.X, orange.Sprite.Y, game.Screen)
 
 		// Check whether it touches mandarin box
 		if orange.InVicinity(mr.MandarinBox.Sprite.X, mr.MandarinBox.Sprite.Y, float64(mr.MandarinBox.Sprite.RealBounds().Dx())) {
@@ -182,7 +178,7 @@ func (mr *MandarinRain) Update(game *Game) {
 	mY := mr.MandarinBox.Sprite.Y
 
 	// Right
-	if mX+float64(mBounds.Dx()) >= float64(mr.screenBounds.Dx()) {
+	if mX+float64(mBounds.Dx()) >= float64(game.Screen.Bounds().Dx()) {
 		mr.MandarinBox.Velocity.Vx = -mr.MandarinBox.Velocity.Vx * 0.3
 	}
 
@@ -197,7 +193,7 @@ func (mr *MandarinRain) Update(game *Game) {
 	}
 
 	// Bottom
-	if mY+float64(mBounds.Dy()) >= float64(mr.screenBounds.Dy()) {
+	if mY+float64(mBounds.Dy()) >= float64(game.Screen.Bounds().Dy()) {
 		mr.MandarinBox.Velocity.Vx = mr.MandarinBox.Velocity.Vx * 0.3 // friction on the floor
 		mr.MandarinBox.Velocity.Vy = -mr.MandarinBox.Velocity.Vy * 0.3
 	}
@@ -206,7 +202,7 @@ func (mr *MandarinRain) Update(game *Game) {
 	mr.MandarinBox.Sprite.Y += mr.MandarinBox.Velocity.Vy
 
 	// Move box
-	mr.MandarinBox.Sprite.MoveTo(mr.MandarinBox.Sprite.X, mr.MandarinBox.Sprite.Y)
+	mr.MandarinBox.Sprite.MoveTo(mr.MandarinBox.Sprite.X, mr.MandarinBox.Sprite.Y, game.Screen)
 
 	if mr.mandarinsInBox == mr.mandarinInitialCount && !mr.boxFull {
 		// All oranges are in a box!
@@ -218,7 +214,7 @@ func (mr *MandarinRain) Update(game *Game) {
 	if mr.boxFull && mr.MandarinBox.InVicinity(
 		game.Capybara.Sprite.X+float64(game.Capybara.Sprite.RealBounds().Dx()/2),
 		game.Capybara.Sprite.Y+float64(game.Capybara.Sprite.RealBounds().Dy()/2),
-		float64(mr.screenBounds.Dx())/7) {
+		float64(game.Screen.Bounds().Dx())/7) {
 		// Give a reward and finish this mandarin rain!
 		game.Save.Points += pointsForLevel(game.Save.Level+1) / 5
 		game.PlaySound("mandarin_rain_completed")

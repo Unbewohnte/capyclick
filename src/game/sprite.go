@@ -20,7 +20,6 @@ type Sprite struct {
 	Y         float64
 	Animation AnimationData
 	Scale     float64
-	Dragged   bool
 }
 
 func NewSprite(img image.Image) *Sprite {
@@ -33,8 +32,7 @@ func NewSprite(img image.Image) *Sprite {
 			Theta:               0.0,
 			BounceDirectionFlag: false,
 		},
-		Scale:   1.0,
-		Dragged: false,
+		Scale: 1.0,
 	}
 }
 
@@ -63,15 +61,13 @@ func (s *Sprite) IsIn(x int, y int) bool {
 }
 
 // Moves sprite to given positions. Respects window constraints
-func (s *Sprite) MoveTo(x float64, y float64) {
+func (s *Sprite) MoveTo(x float64, y float64, screenBounds *ebiten.Image) {
 	s.X = x
 	s.Y = y
-	screenBounds := WindowBounds()
-
 	// Constraints
 	// Right
-	if s.X+float64(s.RealBounds().Dx()) >= float64(screenBounds.Dx()) {
-		s.X = float64(screenBounds.Dx()) - float64(s.RealBounds().Dx())
+	if s.X+float64(s.RealBounds().Dx()) >= float64(screenBounds.Bounds().Dx()) {
+		s.X = float64(screenBounds.Bounds().Dx()) - float64(s.RealBounds().Dx())
 	}
 
 	// Left
@@ -85,8 +81,8 @@ func (s *Sprite) MoveTo(x float64, y float64) {
 	}
 
 	// Bottom
-	if s.Y+float64(s.RealBounds().Dy()) >= float64(screenBounds.Dy()) {
-		s.Y = float64(screenBounds.Dy()) - float64(s.RealBounds().Dy())
+	if s.Y+float64(s.RealBounds().Dy()) >= float64(screenBounds.Bounds().Dy()) {
+		s.Y = float64(screenBounds.Bounds().Dy()) - float64(s.RealBounds().Dy())
 	}
 
 }

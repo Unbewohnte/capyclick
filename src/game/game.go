@@ -25,6 +25,7 @@ type Game struct {
 	AudioPlayers        map[string]*audio.Player
 	FontFace            font.Face
 	PassiveIncomeTicker int
+	Screen              *ebiten.Image
 	Capybara            *Capybara
 	Background          *Sprite
 	MandarinRain        *MandarinRain
@@ -47,6 +48,7 @@ func NewGame() Game {
 			"orange_put":              resources.GetAudioPlayer(audioCtx, "orange_put.wav"),
 			"mandarin_rain_completed": resources.GetAudioPlayer(audioCtx, "mandarin_rain_completed.wav"),
 		},
+		Screen:     nil,
 		Capybara:   NewCapybara(NewSpriteFromFile("capybara_1.png")),
 		Background: NewSpriteFromFile("background_1.png"),
 		FontFace: util.NewFace(fnt, &opentype.FaceOptions{
@@ -131,7 +133,7 @@ func (g *Game) Update() error {
 
 	if !g.MandarinRain.InProgress && g.Save.TimesClicked > 0 && g.Save.TimesClicked%100 == 0 {
 		// Have some oranges!
-		g.MandarinRain.Run()
+		g.MandarinRain.Run(g)
 		logger.Info("Started mandarin rain at %d points!", g.Save.Points)
 	}
 
@@ -149,6 +151,8 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	g.Screen = screen
+
 	// Background
 	screen.Fill(color.Black)
 

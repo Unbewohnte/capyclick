@@ -65,7 +65,7 @@ func (c *Capybara) Draw(screen *ebiten.Image, level uint32) {
 
 	capyWidth := float64(c.Sprite.RealBounds().Dx())
 	capyHeight := float64(c.Sprite.RealBounds().Dy())
-	c.Sprite.MoveTo(float64(screen.Bounds().Dx()/2)-capyWidth/2, float64(screen.Bounds().Dy()/2)-capyHeight/2)
+	c.Sprite.MoveTo(float64(screen.Bounds().Dx()/2)-capyWidth/2, float64(screen.Bounds().Dy()/2)-capyHeight/2, screen)
 
 	op.GeoM.Translate(c.Sprite.X, c.Sprite.Y)
 
