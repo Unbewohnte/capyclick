@@ -73,7 +73,7 @@ func (c *Capybara) Draw(screen *ebiten.Image, level uint32) {
 
 	op := &ebiten.DrawImageOptions{}
 	capybaraBounds := c.Sprite.Img.Bounds()
-	scale := float64(screen.Bounds().Dx()) / float64(capybaraBounds.Dx()) / 2.5
+	scale := float64(screen.Bounds().Dx()) / float64(capybaraBounds.Dx()) / 2.0
 	c.Sprite.Scale = scale
 	op.GeoM.Scale(
 		scale+c.Sprite.Animation.Squish,

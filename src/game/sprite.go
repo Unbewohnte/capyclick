@@ -38,6 +38,7 @@ type Sprite struct {
 	Y         float64
 	Animation AnimationData
 	Scale     float64
+	Dragged   bool
 }
 
 func NewSprite(img image.Image) *Sprite {
@@ -50,7 +51,8 @@ func NewSprite(img image.Image) *Sprite {
 			Theta:               0.0,
 			BounceDirectionFlag: false,
 		},
-		Scale: 1.0,
+		Scale:   1.0,
+		Dragged: false,
 	}
 }
 

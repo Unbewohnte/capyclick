@@ -22,7 +22,6 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 type MandarinRain struct {
@@ -35,12 +34,10 @@ type MandarinRain struct {
 	mandarinsInBox       uint16
 	boxFull              bool
 	mandarinCountRange   [2]uint16
-	// screenBounds         image.Rectangle
 }
 
 func NewMandarinRain(from uint16, to uint16) *MandarinRain {
 	rain := MandarinRain{}
-	// rain.screenBounds = WindowBounds()
 	rain.InProgress = false
 	rain.mandarinInitialCount = uint16(rand.Int31n(int32(to-from)) + int32(from))
 	rain.mandarinCountRange = [2]uint16{from, to}
@@ -57,6 +54,20 @@ func NewMandarinRain(from uint16, to uint16) *MandarinRain {
 	rain.MandarinBox = NewPhysical(NewSpriteFromFile("mandarin_box_empty.png"), 5.5)
 
 	return &rain
+}
+
+func (mr *MandarinRain) PhysicalAt(x int, y int) *Physical {
+	for _, orange := range mr.Mandarins {
+		if orange.Sprite.IsIn(x, y) {
+			return orange
+		}
+	}
+
+	if mr.MandarinBox.Sprite.IsIn(x, y) {
+		return mr.MandarinBox
+	}
+
+	return nil
 }
 
 func (mr *MandarinRain) Run(game *Game) {
@@ -79,40 +90,11 @@ func (mr *MandarinRain) Run(game *Game) {
 }
 
 func (mr *MandarinRain) Update(game *Game) {
-	cPosX, cPosY := ebiten.CursorPosition()
-	var tPosX int = 0
-	var tPosY int = 0
-	if len(ebiten.AppendTouchIDs(nil)) != 0 {
-		tPosX, tPosY = ebiten.TouchPosition(ebiten.AppendTouchIDs(nil)[0])
-	}
-
 	// Oranges
 	temp := mr.Mandarins[:0]
 	for _, orange := range mr.Mandarins {
 		orange.Acceleration.Vx = 0.0
 		orange.Acceleration.Vy = 9.81 / orange.Mass
-
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) &&
-			orange.InVicinity(float64(cPosX), float64(cPosY), 75.0) {
-			difference := newVec2f(
-				(float64(cPosX-orange.Sprite.RealBounds().Dx()/2)-orange.Sprite.X)*4.5,
-				(float64(cPosY-orange.Sprite.RealBounds().Dy()/2)-orange.Sprite.Y)*4.5,
-			)
-
-			orange.Acceleration.Vx = difference.Vx / orange.Mass
-			orange.Acceleration.Vy = difference.Vy / orange.Mass
-		} else if len(inpututil.AppendJustPressedTouchIDs(nil)) != 0 &&
-			orange.InVicinity(float64(tPosX), float64(tPosY), 75.0) {
-
-			tPosX, tPosY := ebiten.TouchPosition(ebiten.AppendTouchIDs(nil)[0])
-			difference := newVec2f(
-				(float64(tPosX-orange.Sprite.RealBounds().Dx()/2)-orange.Sprite.X)*4.5,
-				(float64(tPosY-orange.Sprite.RealBounds().Dy()/2)-orange.Sprite.Y)*4.5,
-			)
-
-			orange.Acceleration.Vx = difference.Vx / orange.Mass
-			orange.Acceleration.Vy = difference.Vy / orange.Mass
-		}
 
 		orange.Velocity.Vx = orange.Velocity.Vx + orange.Acceleration.Vx*0.05
 		orange.Velocity.Vy = orange.Velocity.Vy + orange.Acceleration.Vy*0.05
@@ -165,28 +147,6 @@ func (mr *MandarinRain) Update(game *Game) {
 	// Orange box
 	mr.MandarinBox.Acceleration.Vx = 0.0
 	mr.MandarinBox.Acceleration.Vy = 9.81 / mr.MandarinBox.Mass
-
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) &&
-		mr.MandarinBox.InVicinity(float64(cPosX), float64(cPosY), 75.0) {
-		difference := newVec2f(
-			(float64(cPosX-mr.MandarinBox.Sprite.RealBounds().Dx()/2)-mr.MandarinBox.Sprite.X)*3.5,
-			(float64(cPosY-mr.MandarinBox.Sprite.RealBounds().Dy()/2)-mr.MandarinBox.Sprite.Y)*3.5,
-		)
-
-		mr.MandarinBox.Acceleration.Vx = difference.Vx / mr.MandarinBox.Mass
-		mr.MandarinBox.Acceleration.Vy = difference.Vy / mr.MandarinBox.Mass
-	} else if len(inpututil.AppendJustPressedTouchIDs(nil)) != 0 &&
-		mr.MandarinBox.InVicinity(float64(tPosX), float64(tPosY), 75.0) {
-
-		tPosX, tPosY := ebiten.TouchPosition(ebiten.AppendTouchIDs(nil)[0])
-		difference := newVec2f(
-			(float64(tPosX-mr.MandarinBox.Sprite.RealBounds().Dx()/2)-mr.MandarinBox.Sprite.X)*3.5,
-			(float64(tPosY-mr.MandarinBox.Sprite.RealBounds().Dy()/2)-mr.MandarinBox.Sprite.Y)*3.5,
-		)
-
-		mr.MandarinBox.Acceleration.Vx = difference.Vx / mr.MandarinBox.Mass
-		mr.MandarinBox.Acceleration.Vy = difference.Vy / mr.MandarinBox.Mass
-	}
 
 	mr.MandarinBox.Velocity.Vx = mr.MandarinBox.Velocity.Vx + mr.MandarinBox.Acceleration.Vx*0.05
 	mr.MandarinBox.Velocity.Vy = mr.MandarinBox.Velocity.Vy + mr.MandarinBox.Acceleration.Vy*0.05

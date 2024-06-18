@@ -36,7 +36,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-const Version string = "v0.1.1-release"
+const Version string = "v0.1.2-release"
 
 var (
 	silent    *bool = flag.Bool("silent", false, "Set to true in order to discard all logging")

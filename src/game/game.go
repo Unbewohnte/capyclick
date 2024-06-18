@@ -44,6 +44,8 @@ type Game struct {
 	FontFace            font.Face
 	PassiveIncomeTicker int
 	Screen              *ebiten.Image
+	TouchIDs            []ebiten.TouchID
+	Strokes             map[*Stroke]struct{}
 	Capybara            *Capybara
 	Background          *Sprite
 	MandarinRain        *MandarinRain
@@ -74,6 +76,8 @@ func NewGame() Game {
 			DPI:     72,
 			Hinting: font.HintingVertical,
 		}),
+		TouchIDs:            nil,
+		Strokes:             map[*Stroke]struct{}{},
 		PassiveIncomeTicker: 0,
 		MandarinRain:        NewMandarinRain(3, 8),
 	}
@@ -163,6 +167,30 @@ func (g *Game) Update() error {
 	if g.MandarinRain.Completed {
 		// Prepare a new mandarin rain
 		g.MandarinRain = NewMandarinRain(3, 8)
+	}
+
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && g.MandarinRain.InProgress {
+		physical := g.MandarinRain.PhysicalAt(ebiten.CursorPosition())
+		if physical != nil {
+			s := NewStroke(&MouseStrokeSource{}, physical)
+			g.Strokes[s] = struct{}{}
+		}
+	}
+
+	g.TouchIDs = inpututil.AppendJustPressedTouchIDs(g.TouchIDs[:0])
+	for _, id := range g.TouchIDs {
+		physical := g.MandarinRain.PhysicalAt(ebiten.TouchPosition(id))
+		if physical != nil {
+			s := NewStroke(&TouchStrokeSource{id}, physical)
+			g.Strokes[s] = struct{}{}
+		}
+	}
+
+	for s := range g.Strokes {
+		s.Update(g)
+		if !s.Physical().Sprite.Dragged {
+			delete(g.Strokes, s)
+		}
 	}
 
 	return nil
